@@ -55,12 +55,11 @@
             ></v-switch>
           </v-list-item>
           <v-divider />
-          <v-list-item>
-            <v-icon>
-              mdi-logout
-            </v-icon>
-            Logout
-          </v-list-item>
+            <!-- Logout Button -->
+            <v-list-item @click="logout">
+              <v-icon class="mr-2">mdi-logout</v-icon>
+              Logout
+            </v-list-item>
         </v-list>
       </v-card>
     </v-menu>
@@ -68,11 +67,17 @@
 </template>
 <script setup lang="ts">
 import { ref } from 'vue';
-
+import { useRouter } from 'vue-router';
 
 const menu = ref(false)
 const fav = ref(true)
 const message = ref(false)
 const hints = ref(true)
+const router = useRouter();
 
+// Logout Function
+const logout = () => {
+  console.log("Logging out...");
+  router.push("/login"); // Redirect to login page
+};
 </script>

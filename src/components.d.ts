@@ -9,10 +9,10 @@ declare module 'vue' {
   export interface GlobalComponents {
     AppFooter: typeof import('./components/AppFooter.vue')['default']
     HelloWorld: typeof import('./components/HelloWorld.vue')['default']
+    LoginCard: typeof import('./components/login/LoginCard.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     WorkspaceList: typeof import('./components/workspace/WorkspaceList.vue')['default']
-    WorkspaceUsers: typeof import('./components/workspace/WorkspaceUsersDialog.vue')['default']
     WorkspaceUsersDialog: typeof import('./components/workspace/WorkspaceUsersDialog.vue')['default']
   }
 }
