@@ -78,6 +78,14 @@ const router = useRouter();
 // Logout Function
 const logout = () => {
   console.log("Logging out...");
-  router.push("/login"); // Redirect to login page
+  
+  // Clear the authentication state from localStorage
+  localStorage.removeItem('isAuthenticated');
+  
+  // Optionally, you can also clear other sensitive data (e.g., user data) from localStorage if needed
+  
+  // Redirect the user to the login page
+  router.push("/login");
 };
+
 </script>

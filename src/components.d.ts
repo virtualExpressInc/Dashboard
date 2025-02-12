@@ -12,6 +12,7 @@ declare module 'vue' {
     LoginCard: typeof import('./components/login/LoginCard.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    VeiLoader: typeof import('./components/global/loader/VeiLoader.vue')['default']
     WorkspaceList: typeof import('./components/workspace/WorkspaceList.vue')['default']
     WorkspaceUsersDialog: typeof import('./components/workspace/WorkspaceUsersDialog.vue')['default']
   }
