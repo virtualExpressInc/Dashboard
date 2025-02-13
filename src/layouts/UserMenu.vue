@@ -10,7 +10,7 @@
           <v-avatar v-bind="props">
             <v-img
               alt="UserProfile"
-              src="https://cdn.vuetifyjs.com/images/john.jpg"
+              :src="avatar"
             ></v-img>
           </v-avatar>
         </v-btn>
@@ -68,6 +68,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
+import avatar from '@/assets/avatar-placeholder.jpg'
 
 const menu = ref(false)
 const fav = ref(true)

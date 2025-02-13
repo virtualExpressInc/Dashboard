@@ -78,7 +78,8 @@ const router = useRouter();
 const isError = ref(false)
 // Static credentials for login
 const staticEmail = 'timetracker@virtualexpressinc.com';
-const staticPassword = 'v1rtu@l3xpRess1nC2025!';
+const staticPassword = 'Moreclients2023!';
+
 
 // Login function
 const login = () => {
