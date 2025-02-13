@@ -8,7 +8,7 @@ export const useGetUserData = (workspaceId: string, payload: UserReportDataReque
   const loading = ref<boolean>(false);             // Loading state
   const error = ref<string | null>(null);           // Error state
 
-  const fetchUserData = async () => {
+  const fetchUserData = async (payload:any) => {
     loading.value = true;
     error.value = null;
     try {

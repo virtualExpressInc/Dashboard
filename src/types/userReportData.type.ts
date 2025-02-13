@@ -5,5 +5,5 @@ export interface UserReportDataRequest {
   sortOrder: string; // Sorting order
   sortColumn: string;        // The column by which to sort
   page: number;         // The page number for pagination
-  pagesSize: number;  // The size of the page for pagination
+  pageSize: number;  // The size of the page for pagination
 };
