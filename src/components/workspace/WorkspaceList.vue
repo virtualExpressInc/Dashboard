@@ -2,11 +2,11 @@
   <v-container>
     <v-row>
       <v-col cols="12">
-        <v-alert v-if="error" type="error">
-          {{ error }}
-        </v-alert>
-        <!-- Display Workspaces in a Table -->
-        <v-table v-if="workspaces && workspaces.length > 0">
+        <v-card variant="flat">
+          <v-card-title>
+            Workspaces / Clients
+          </v-card-title>
+          <v-table v-if="workspaces && workspaces.length > 0">
           <thead>
             <tr>
               <th class="text-left">Name</th>
@@ -33,11 +33,7 @@
             </tr>
           </tbody>
         </v-table>
-
-        <!-- No Workspaces Available -->
-        <v-alert v-else type="info">
-          No workspaces available.
-        </v-alert>
+        </v-card>
       </v-col>
     </v-row>
 
@@ -60,7 +56,7 @@ import WorkspaceUsersDialog from "./WorkspaceUsersDialog.vue"
 const { workspaces, error, fetchWorkspaces } = useWorkspaces();
 
 const openDialog = ref(false);
-const selectedWorkspace = ref<{ id: string; name: string; memberships: Array<{ id: string; name: string }> } | null>(null);
+const selectedWorkspace = ref<{ id: string; name: string; memberships: Array<{ id: string; name: string; userId: string; hourlyRate: any }> } | null>(null);
 
 onMounted(() => {
   fetchWorkspaces();

@@ -1,5 +1,5 @@
 <template>
-  <v-dialog v-model="props.openDialog" max-width="600px">
+  <v-dialog v-model="props.openDialog" max-width="900px">
     <v-card>
       <v-card-title>
         {{ workspace?.name }} - Members
@@ -23,36 +23,45 @@
         <thead>
           <tr>
             <th class="text-left">Name</th>
+            <th class="text-left">Hourly Rate</th>
             <th class="text-left">Time Tracked</th>
             <th class="text-left">Billable</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="user in users" :key="user.id">
-            <td>
+            <td class="pl-4">
               <v-row>
                 <v-avatar size="40" class="border rounded-circle" style="border: 2px solid #000;">
                   <v-img v-if="user.profilePicture" :src="user.profilePicture" alt="User Avatar" />
-                <span v-else class="avatar-placeholder">{{ user.name.charAt(0).toUpperCase() }}</span>
-              </v-avatar>
-              <div class="d-flex flex-column align-left ml-2">
-                <div>{{ user.name }}</div>
-                <div class="text-caption">{{ user.email }}</div> <!-- Email below the name with a smaller, muted style -->
-              </div>
+                  <span v-else class="avatar-placeholder">{{ user.name.charAt(0).toUpperCase() }}</span>
+                </v-avatar>
+                <div class="d-flex flex-column align-left ml-2">
+                  <div>{{ user.name }}</div>
+                  <div class="text-caption">{{ user.email }}</div>
+                  <!-- Email below the name with a smaller, muted style -->
+                </div>
               </v-row>
             </td>
             <td>
-              {{ parseClockifyDuration(userData?.find(item => item.user.id === user.id)?.totalTime || "PT0S") }}
+              ₱{{moneyFormat(
+                props?.workspace?.memberships?.find(item => item.userId === user.id)?.hourlyRate?.amount ?? 0
+              )}}
             </td>
             <td>
-              ₱ {{
-                totalBillableRate(
-                  hourlyTime(userData?.find(item => item.user.id === user.id)?.totalTime || "PT0S"),
-                  moneyFormat(
-                    props?.workspace?.memberships?.find(item => item.userId === user.id)?.hourlyRate?.amount ?? 0
-                  )
-                )
-              }}
+              {{parseClockifyDuration(userData?.find(item => item.user.id === user.id)?.totalTime || "PT0S")}}
+            </td>
+            <td>
+              <b>
+                ₱ {{
+                  currencyFormat(Number(totalBillableRate(
+                    hourlyTime(userData?.find(item => item.user.id === user.id)?.totalTime || "PT0S"),
+                    moneyFormat(
+                      props?.workspace?.memberships?.find(item => item.userId === user.id)?.hourlyRate?.amount ?? 0
+                    )
+                  )))
+                }}
+              </b>
               <!-- {{ props?.workspace?.memberships?.find(item => item.userId === user.id )?.hourlyRate?.currency }} -->
             </td>
           </tr>
@@ -75,6 +84,7 @@ import { parseClockifyDuration } from '@/helpers/exractTime';
 import { moneyFormat } from '@/helpers/moneyFormat'
 import { hourlyTime } from '@/helpers/hourlyTime'
 import { totalBillableRate } from '@/helpers/totalBillable'
+import { currencyFormat } from '@/helpers/currencyFormat'
 
 const props = defineProps<{
   openDialog: boolean;

@@ -1,9 +1,9 @@
 <template>
-  <div class="dashboard">
-    <CountCards />
+  <div class="clients">
+    <WorkspaceList />
   </div>
 </template>
 
 <script lang="ts" setup>
-  //
+//
 </script>
