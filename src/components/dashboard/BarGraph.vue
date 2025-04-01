@@ -1,8 +1,15 @@
 <template>
   <section>
     <v-card>
-      <v-card-text>
+      <v-card-text class="text-center">
+        <v-progress-circular
+          v-if="loading"
+          indeterminate
+          color="primary"
+          size="64"
+        ></v-progress-circular>
         <apexchart
+          v-else
           type="bar"
           :options="chartOptions"
           :series="chartSeries"
@@ -13,87 +20,133 @@
   </section>
 </template>
 
-<script>
+<script lang="ts">
+import { defineComponent, ref, onMounted } from "vue";
 import VueApexCharts from "vue3-apexcharts";
 import { useWorkspaces } from "@/hooks/workspace/useGetAllWorkspace";
 import { useUsersByWorkspace } from "@/hooks/user/useGetAllUsersByWorkspace";
 import { useGetUserData } from "@/hooks/user/useGetUserData";
-import { ref, onMounted, computed } from "vue";
 import { hourlyTime } from "@/helpers/hourlyTime";
-import { moneyFormat } from "@/helpers/moneyFormat";
 
-export default {
+interface MonthDateRange {
+  start: string;
+  end: string;
+}
+
+interface ChartSeriesItem {
+  name: string;
+  data: number[];
+}
+
+export default defineComponent({
+  name: "MonthlyBillablesChart",
   components: {
     apexchart: VueApexCharts,
   },
   setup() {
-    console.log("[BarGraph] Initializing component"); // Log 1: Component initialization
-    
     const { workspaces, fetchWorkspaces } = useWorkspaces();
-    const chartSeries = ref([{ name: "Billables", data: [] }]);
+    const chartSeries = ref<ChartSeriesItem[]>([{ name: "Billables", data: [] }]);
+    const loading = ref(true);
     
-    // Get current month (0-11)
-    const currentMonth = new Date().getMonth();
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth();
     
-    // Generate month labels from Jan to current month
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", 
+                       "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const activeMonths = monthNames.slice(0, currentMonth + 1);
     
-    
     const chartOptions = ref({
-      chart: { id: "bar-chart" },
+      chart: { 
+        id: "bar-chart",
+        toolbar: {
+          show: false
+        }
+      },
       xaxis: { 
         categories: activeMonths,
         title: {
           text: `Months (Jan - ${monthNames[currentMonth]})`
         }
       },
+      yaxis: {
+        title: {
+          text: "Amount (₱)",
+          formatter: function(value: number) {
+            return "₱" + value;
+          }
+        },
+        labels: {
+          formatter: function(value: number) {
+            return "₱" + (value / 1000) + "k";
+          }
+        }
+      },
       title: { 
-        text: `Monthly Billables (${new Date().getFullYear()})`, 
+        text: `Monthly Billables (${currentYear})`, 
         align: "center" 
       },
       plotOptions: {
         bar: {
-          columnWidth: '70%' // Adjust bar width
+          columnWidth: '70%'
+        }
+      },
+      dataLabels: {
+        enabled: true,
+        formatter: function(val: number) {
+          return "₱" + (val).toLocaleString();
+        },
+        offsetY: -20,
+        style: {
+          fontSize: '12px',
+          colors: ["#FFFFFF"]
+        }
+      },
+      colors: ['#008FFB'],
+      fill: {
+        opacity: 1
+      },
+      tooltip: {
+        y: {
+          formatter: function(value: number) {
+            return "₱" + (value).toLocaleString();
+          }
         }
       }
     });
 
-    const getMonthDateRange = (year, month) => {
+    const getMonthDateRange = (year: number, month: number): MonthDateRange => {
       const start = new Date(year, month, 1);
-      const end = new Date(year, month + 1, 0);
+      const end = month === currentMonth 
+        ? currentDate
+        : new Date(year, month + 1, 0);
+      
       return {
         start: start.toISOString().split('T')[0] + "T00:00:00.000Z",
         end: end.toISOString().split('T')[0] + "T23:59:59.999Z"
       };
     };
 
-    const computeMonthlyBillables = async () => {
- 
-      
-      const currentYear = new Date().getFullYear();
-      const monthlyTotals = [0, 0, 0, 0, 0, 0, 0];
+    const computeMonthlyBillables = async (): Promise<void> => {
+      const monthlyTotals: number[] = new Array(currentMonth + 1).fill(0);
 
       try {
-
+        loading.value = true;
         await fetchWorkspaces();
 
-
-        if (!workspaces.value) {
-          console.warn("[BarGraph] No workspaces found"); // Log 5: Empty workspaces
+        if (!workspaces.value || workspaces.value.length === 0) {
+          console.warn("[BarGraph] No workspaces found");
+          chartSeries.value[0].data = monthlyTotals;
           return;
         }
 
-        for (const [wIndex, workspace] of workspaces.value.entries()) {
-
-
+        for (const workspace of workspaces.value) {
           const { users, fetchUsersByWorkspace } = useUsersByWorkspace(workspace.id);
           await fetchUsersByWorkspace();
 
+          if (!users.value || users.value.length === 0) continue;
 
-          if (!users.value) continue;
-
-          for (let month = 0; month < 7; month++) {
+          for (let month = 0; month <= currentMonth; month++) {
             const dateRange = getMonthDateRange(currentYear, month);
             const payload = {
               start: dateRange.start,
@@ -105,10 +158,8 @@ export default {
               pageSize: 100
             };
 
-
             const { users: timeEntries, fetchUserData } = useGetUserData(workspace.id, payload);
             await fetchUserData(payload);
-
 
             users.value.forEach(user => {
               const userEntries = timeEntries.value?.find(entry => entry.user.id === user.id);
@@ -116,25 +167,25 @@ export default {
               const hours = hourlyTime(duration);
               const rate = workspace.memberships?.find(m => m.userId === user.id)?.hourlyRate?.amount || 0;
               
-
               monthlyTotals[month] += hours * rate;
             });
           }
         }
 
-
-        chartSeries.value[0].data = monthlyTotals.map(amount => moneyFormat(amount));
+        chartSeries.value[0].data = monthlyTotals.map(amount => Math.round(amount) / 100);
       } catch (error) {
-        console.error("[BarGraph] Error in computeMonthlyBillables:", error); // Log 14: Error case
+        console.error("[BarGraph] Error in computeMonthlyBillables:", error);
+        chartSeries.value[0].data = new Array(currentMonth + 1).fill(0);
+      } finally {
+        loading.value = false;
       }
     };
 
     onMounted(() => {
-      console.log("[BarGraph] Component mounted"); // Log 15: Mounted hook
       computeMonthlyBillables();
     });
 
-    return { chartOptions, chartSeries };
+    return { chartOptions, chartSeries, loading };
   },
-};
+});
 </script>
