@@ -1,34 +1,43 @@
 <template>
   <section>
     <v-card>
-      <v-card-text>
-        <apexchart
-          type="pie"
-          :options="chartOptions"
-          :series="seriesData"
-          height="350"
-        />
+      <v-card-text class="text-center">
+        <v-progress-circular
+          v-if="loading"
+          indeterminate
+          color="primary"
+          size="64"
+        ></v-progress-circular>
         
-        <div class="legend-container mt-4">
-          <div 
-            v-for="(workspace, index) in filteredWorkspaces" 
-            :key="workspace.id"
-            class="legend-item"
-          >
-            <span 
-              class="color-indicator"
-              :style="{ backgroundColor: getColor(index) }"
-            ></span>
-            <span class="legend-name">{{ workspace.name }}</span>
-            <span class="legend-percentage">({{ getPercentage(workspace.id) }}%)</span>
+        <template v-else>
+          <apexchart
+            type="pie"
+            :options="chartOptions"
+            :series="seriesData"
+            height="350"
+          />
+          
+          <div class="legend-container mt-4">
+            <div 
+              v-for="(workspace, index) in filteredWorkspaces" 
+              :key="workspace.id"
+              class="legend-item"
+            >
+              <span 
+                class="color-indicator"
+                :style="{ backgroundColor: getColor(index) }"
+              ></span>
+              <span class="legend-name">{{ workspace.name }}</span>
+              <span class="legend-percentage">({{ getPercentage(workspace.id) }}%)</span>
+            </div>
           </div>
-        </div>
-        
-        <div class="mt-4 text-center">
-          <v-chip class="ma-2" color="primary">
-            Yearly Total Owed: {{ moneyFormat(totalOwed) }}
-          </v-chip>
-        </div>
+          
+          <div class="mt-4 text-center">
+            <v-chip class="ma-2" color="primary">
+              {{ currentYear }} Billables: ₱{{ moneyFormat(totalOwed) }}
+            </v-chip>
+          </div>
+        </template>
       </v-card-text>
     </v-card>
   </section>
@@ -37,11 +46,11 @@
 <script lang="ts">
 import { defineComponent, ref, onMounted, computed } from "vue";
 import VueApexCharts from "vue3-apexcharts";
-import { useWorkspaces } from "../..//hooks/workspace/useGetAllWorkspace";
-import { useUsersByWorkspace } from "../../hooks/user/useGetAllUsersByWorkspace";
-import { useGetUserData } from "../../hooks/user/useGetUserData";
-import { hourlyTime } from "../../helpers/hourlyTime";
-import { moneyFormat } from "../../helpers/moneyFormat";
+import { useWorkspaces } from "@/hooks/workspace/useGetAllWorkspace";
+import { useUsersByWorkspace } from "@/hooks/user/useGetAllUsersByWorkspace";
+import { useGetUserData } from "@/hooks/user/useGetUserData";
+import { hourlyTime } from "@/helpers/hourlyTime";
+import { moneyFormat } from "@/helpers/moneyFormat";
 
 interface WorkspaceTotal {
   id: string;
@@ -57,6 +66,9 @@ export default defineComponent({
     const { workspaces, fetchWorkspaces } = useWorkspaces();
     const workspaceTotals = ref<WorkspaceTotal[]>([]);
     const totalOwed = ref<number>(0);
+    const loading = ref(true);
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
 
     const colors: string[] = ['#008FFB', '#00E396', '#FEB019', '#FF4560', '#775DD0', '#546E7A', '#26a69a', '#D10CE8'];
 
@@ -83,7 +95,7 @@ export default defineComponent({
           return `
             <div class="custom-tooltip">
               <strong>${workspace.name}</strong><br>
-              ${series[seriesIndex].toFixed(1)}% (${moneyFormat(workspaceTotals.value[seriesIndex].total)})
+              ${series[seriesIndex].toFixed(1)}% (₱${moneyFormat(workspaceTotals.value[seriesIndex].total)})
             </div>
           `;
         }
@@ -105,7 +117,6 @@ export default defineComponent({
     };
 
     const getCurrentYearRange = () => {
-      const currentYear = new Date().getFullYear();
       return {
         start: new Date(currentYear, 0, 1).toISOString(),
         end: new Date(currentYear, 11, 31).toISOString()
@@ -114,6 +125,7 @@ export default defineComponent({
 
     const computeYearlyBillables = async () => {
       try {
+        loading.value = true;
         await fetchWorkspaces();
         if (!workspaces.value || workspaces.value.length === 0) return;
 
@@ -149,6 +161,8 @@ export default defineComponent({
         totalOwed.value = grandTotal;
       } catch (error) {
         console.error("Error computing yearly billables:", error);
+      } finally {
+        loading.value = false;
       }
     };
 
@@ -162,6 +176,8 @@ export default defineComponent({
       chartOptions, 
       seriesData,
       totalOwed,
+      currentYear,
+      loading,
       moneyFormat,
       getColor,
       getPercentage
