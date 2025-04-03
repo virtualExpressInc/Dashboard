@@ -1,39 +1,43 @@
 <template>
-  <section>
-    <v-card>
-      <v-card-text class="text-center">
+  <section style="height: 100%;">
+    <v-card style="height: 100%;">
+      <v-card-text class="text-center" style="height: 100%; min-height: 200px; padding: 8px;">
         <v-progress-circular
           v-if="loading"
           indeterminate
           color="primary"
           size="64"
+          style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);"
         ></v-progress-circular>
         
         <template v-else>
-          <apexchart
-            type="pie"
-            :options="chartOptions"
-            :series="seriesData"
-            height="350"
-          />
+          <div style="height: calc(100% - 120px); min-height: 100px;">
+            <apexchart
+              type="pie"
+              :options="chartOptions"
+              :series="seriesData"
+              style="width: 100%; height: 100%;"
+            />
+          </div>
           
-          <div class="legend-container mt-4">
+          <div class="legend-container mt-2" style="max-height: 100px; overflow-y: auto;">
             <div 
               v-for="(workspace, index) in filteredWorkspaces" 
               :key="workspace.id"
               class="legend-item"
+              style="min-width: 120px;"
             >
               <span 
                 class="color-indicator"
                 :style="{ backgroundColor: getColor(index) }"
               ></span>
-              <span class="legend-name">{{ workspace.name }}</span>
+              <span class="legend-name">{{ (workspace.name) }}</span>
               <span class="legend-percentage">({{ getPercentage(workspace.id) }}%)</span>
             </div>
           </div>
           
-          <div class="mt-4 text-center">
-            <v-chip class="ma-2" color="primary">
+          <div class="mt-2 text-center">
+            <v-chip class="ma-1" color="primary" small>
               {{ currentYear }} Billables: ₱{{ moneyFormat(totalOwed) }}
             </v-chip>
           </div>
@@ -59,10 +63,17 @@ interface WorkspaceTotal {
 }
 
 export default defineComponent({
+  name: "YearlyBillablesPieChart",
   components: {
     apexchart: VueApexCharts,
   },
-  setup() {
+  props: {
+    height: {
+      type: Number,
+      default: 200
+    }
+  },
+  setup(props) {
     const { workspaces, fetchWorkspaces } = useWorkspaces();
     const workspaceTotals = ref<WorkspaceTotal[]>([]);
     const totalOwed = ref<number>(0);
@@ -72,6 +83,8 @@ export default defineComponent({
 
     const colors: string[] = ['#008FFB', '#00E396', '#FEB019', '#FF4560', '#775DD0', '#546E7A', '#26a69a', '#D10CE8'];
 
+    const chartHeight = computed(() => props.height - 120); // Adjust for legend and chip space
+
     const filteredWorkspaces = computed(() => {
       return workspaces.value?.filter(ws => 
         workspaceTotals.value.some(wt => wt.id === ws.id && wt.total > 0)
@@ -79,15 +92,25 @@ export default defineComponent({
     });
 
     const chartOptions = ref({
-      chart: { id: "pie-chart", type: 'pie' },
+      chart: { 
+        id: "pie-chart", 
+        type: 'pie',
+        height: chartHeight.value
+      },
       colors: colors,
       labels: computed(() => filteredWorkspaces.value.map(ws => ws.name)),
       dataLabels: {
         enabled: true,
         formatter: (val: number) => `${val.toFixed(1)}%`,
-        style: { colors: ['#fff'], fontSize: '12px', fontWeight: 'bold' }
+        style: { 
+          colors: ['#fff'], 
+          fontSize: '12px', 
+          fontWeight: 'bold' 
+        }
       },
-      legend: { show: false },
+      legend: { 
+        show: false 
+      },
       tooltip: { 
         enabled: true,
         custom: ({ series, seriesIndex }: { series: number[]; seriesIndex: number }) => {
@@ -99,7 +122,21 @@ export default defineComponent({
             </div>
           `;
         }
-      }
+      },
+      responsive: [{
+        breakpoint: 600,
+        options: {
+          chart: {
+            width: '100%'
+          },
+          legend: {
+            position: 'bottom'
+          },
+          dataLabels: {
+            enabled: false
+          }
+        }
+      }]
     });
 
     const seriesData = computed(() => {
@@ -130,7 +167,15 @@ export default defineComponent({
         if (!workspaces.value || workspaces.value.length === 0) return;
 
         const { start, end } = getCurrentYearRange();
-        const payload = { start, end, type: "PROJECT", sortOrder: "DESCENDING", sortColumn: "DATE", page: 1, pageSize: 100 };
+        const payload = { 
+          start, 
+          end, 
+          type: "PROJECT", 
+          sortOrder: "DESCENDING", 
+          sortColumn: "DATE", 
+          page: 1, 
+          pageSize: 100 
+        };
 
         const calculations: WorkspaceTotal[] = [];
         let grandTotal = 0;
@@ -168,7 +213,7 @@ export default defineComponent({
 
     onMounted(() => {
       computeYearlyBillables();
-      setInterval(computeYearlyBillables, 300000);
+      setInterval(computeYearlyBillables, 300000); // Refresh every 5 minutes
     });
 
     return { 
@@ -180,48 +225,73 @@ export default defineComponent({
       loading,
       moneyFormat,
       getColor,
-      getPercentage
+      getPercentage,
+      chartHeight
     };
   },
 });
 </script>
 
 <style scoped>
+.v-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.v-card-text {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
 .legend-container {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 8px 16px;
-  max-width: 800px;
-  margin: 20px auto 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  padding: 4px;
 }
 
 .legend-item {
   display: flex;
   align-items: center;
-  min-width: 250px;
+  padding: 2px;
+  background: rgba(0,0,0,0.05);
+  border-radius: 4px;
 }
 
 .color-indicator {
   display: inline-block;
-  width: 16px;
-  height: 16px;
-  border-radius: 4px;
-  margin-right: 8px;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  margin-right: 6px;
   flex-shrink: 0;
 }
 
 .legend-name {
-  display: inline-block;
-  width: 150px;
+  font-size: 0.8rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100px;
 }
 
 .legend-percentage {
-  display: inline-block;
-  width: 60px;
-  text-align: right;
-  color: rgba(0, 0, 0, 0.6);
+  font-size: 0.8rem;
+  margin-left: 4px;
+  color: rgba(0, 0, 0, 0.7);
+}
+
+@media (max-width: 600px) {
+  .legend-name {
+    max-width: 70px;
+  }
+  
+  .legend-item {
+    min-width: 100px;
+  }
 }
 </style>

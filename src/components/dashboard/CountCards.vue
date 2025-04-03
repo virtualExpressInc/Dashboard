@@ -1,5 +1,5 @@
 <template>
-  <v-container>
+  <div>
     <v-row>
       <v-col cols="12" sm="6" md="3">
         <v-card class="pa-4 d-flex align-center" elevation="2">
@@ -70,7 +70,7 @@
         </v-card>
       </v-col>
     </v-row>
-  </v-container>
+  </div>
 </template>
 
 <script setup lang="ts">

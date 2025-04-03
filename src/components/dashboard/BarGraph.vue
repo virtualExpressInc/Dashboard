@@ -1,19 +1,20 @@
 <template>
-  <section>
-    <v-card>
+  <section style="height: 100%;">
+    <v-card style="height: 100%;">
       <v-card-text class="text-center">
         <v-progress-circular
           v-if="loading"
           indeterminate
           color="primary"
           size="64"
+          style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);"
         ></v-progress-circular>
         <apexchart
           v-else
           type="bar"
           :options="chartOptions"
           :series="chartSeries"
-          height="350"
+          style="width: 100%; height: 100%;"
         />
       </v-card-text>
     </v-card>
@@ -59,9 +60,8 @@ export default defineComponent({
     const chartOptions = ref({
       chart: { 
         id: "bar-chart",
-        toolbar: {
-          show: false
-        }
+        toolbar: { show: false },
+        height: '100%'
       },
       xaxis: { 
         categories: activeMonths,
@@ -88,7 +88,9 @@ export default defineComponent({
       },
       plotOptions: {
         bar: {
-          columnWidth: '70%'
+          columnWidth: '45%',
+          distributed: true,
+          borderRadius: 4
         }
       },
       dataLabels: {
@@ -189,3 +191,17 @@ export default defineComponent({
   },
 });
 </script>
+
+<style scoped>
+.v-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.v-card-text {
+  position: relative;
+  flex: 1;
+  min-height: 400px;
+}
+</style>
