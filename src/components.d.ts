@@ -7,6 +7,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    ActiveMembersList: typeof import('./components/active/ActiveMembersList.vue')['default']
     AppFooter: typeof import('./components/AppFooter.vue')['default']
     AverageSalaryChart: typeof import('./components/dashboard/AverageSalaryChart.vue')['default']
     BarGraph: typeof import('./components/dashboard/BarGraph.vue')['default']

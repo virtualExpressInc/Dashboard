@@ -24,6 +24,12 @@ const router = createRouter({
       component: () => import('@/pages/clients.vue'),
       meta: { requiresAuth: true }, // Protect this route
     },
+    {
+      path: '/members',
+      name: 'Members',
+      component: () => import('@/pages/members.vue'),
+      meta: { requiresAuth: true },
+    },
   ]),
 });
 
