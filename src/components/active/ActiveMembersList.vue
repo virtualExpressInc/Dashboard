@@ -32,8 +32,8 @@
             class="d-flex px-6 py-3"
             style="background-color: #FFFFFF !important; color: #2e2e2e; font-weight: 500; border-top: 1px solid #e0e0e0; border-bottom: 1px solid #e0e0e0;"
           >
-            <div style="width: 60%; min-width: 240px;">Name</div>
-            <div style="width: 25%;">Workspace</div>
+            <div style="width: 50%; min-width: 240px;">Name</div>
+            <div style="width: 35%;">Workspace</div>
             <div style="width: 15%;">Status</div>
           </div>
 
@@ -49,13 +49,13 @@
             <template v-slot:item="{ item }">
               <div class="d-flex px-6 py-3 align-center" style="border-bottom: 1px solid #eee;">
                 <!-- Name -->
-                <div style="width: 60%; min-width: 240px;">
+                <div style="width: 50%; min-width: 240px;">
                   <div>{{ item.name }}</div>
                   <div class="text-caption">{{ item.email }}</div>
                 </div>
 
                 <!-- Workspace -->
-                <div style="width: 25%;">{{ item.workspace }}</div>
+                <div style="width: 35%;">{{ item.workspace }}</div>
 
                 <!-- Status -->
                 <div style="width: 15%;">
