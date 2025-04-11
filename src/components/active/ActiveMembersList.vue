@@ -1,81 +1,94 @@
 <template>
-    <v-card>
-      <!-- Card Title + Filter -->
-      <v-card-title class="d-flex justify-between align-center">
-        <v-spacer />
-        <v-select
-          v-model="selectedWorkspace"
-          :items="workspaceOptions"
-          label="Filter by Workspace"
-          item-title="name"
-          item-value="id"
-          clearable
-          dense
-          outlined
-          style="max-width: 300px"
-        />
-      </v-card-title>
-  
-      <!-- Section Header -->
-      <v-card-text class="px-6 pt-2">
-        <h4 class="text-h6 font-weight-medium mb-2">Member List</h4>
-      </v-card-text>
-  
-      <!-- Table -->
-      <v-card-text>
-        <!-- Static header row -->
-        <div class="d-flex px-6 py-2 font-weight-medium text-subtitle-2" style="background-color: #f5f5f5;">
-            <div style="width: 40%; min-width: 240px;">Name</div>
-            <div style="width: 40%;">Workspace</div>
-            <div style="width: 20%;">Status</div>
-        </div>
+  <v-container>
+    <v-row>
+      <v-col cols="12">
+        <v-card
+          class="rounded-lg"
+          variant="flat"
+          style="border: 1px solid #eee;"
+        >
+          <!-- Section Header -->
+          <v-card-text class="px-6 pt-6 pb-2">
+            <h4 class="text-h6 font-weight-medium mb-2">Member List</h4>
+          </v-card-text>
 
+          <!-- Filter -->
+          <v-card-text class="px-6 pt-0 pb-4">
+            <v-select
+              v-model="selectedWorkspace"
+              :items="workspaceOptions"
+              label="Filter by Workspace"
+              item-title="name"
+              item-value="id"
+              clearable
+              dense
+              variant="outlined"
+              style="max-width: 300px"
+            />
+          </v-card-text>
 
-        <!-- Data table -->
-        <v-data-table
+          <!-- Custom Table Header -->
+          <div
+            class="d-flex px-6 py-3"
+            style="background-color: #FFFFFF !important; color: #2e2e2e; font-weight: 500; border-top: 1px solid #e0e0e0; border-bottom: 1px solid #e0e0e0;"
+          >
+            <div style="width: 60%; min-width: 240px;">Name</div>
+            <div style="width: 25%;">Workspace</div>
+            <div style="width: 15%;">Status</div>
+          </div>
+
+          <!-- Table Body -->
+          <v-data-table
             :headers="headers"
             :items="filteredMembers"
             :loading="loading"
-            class="elevation-1"
+            class="elevation-0"
             hide-default-header
             item-value="email"
-            >
-                <template v-slot:item="{ item }">
-                    <div class="d-flex px-6 py-4 align-center" style="border-bottom: 1px solid #eee;">
-                    <!-- Name (Avatar + Email) -->
-                    <div style="width: 40%; min-width: 240px;" class="d-flex align-center">
-                        <v-avatar size="40" class="border" style="border: 2px solid #000;">
-                        <v-img v-if="item.profilePicture" :src="item.profilePicture" alt="User Avatar" />
-                        <span v-else class="avatar-placeholder">{{ item.name.charAt(0).toUpperCase() }}</span>
-                        </v-avatar>
-                        <div class="d-flex flex-column align-left ml-2">
-                        <div>{{ item.name }}</div>
-                        <div class="text-caption">{{ item.email }}</div>
-                        </div>
-                    </div>
+          >
+            <template v-slot:item="{ item }">
+              <div class="d-flex px-6 py-3 align-center" style="border-bottom: 1px solid #eee;">
+                <!-- Name -->
+                <div style="width: 60%; min-width: 240px;">
+                  <div>{{ item.name }}</div>
+                  <div class="text-caption">{{ item.email }}</div>
+                </div>
 
-                    <!-- Workspace -->
-                    <div style="width: 40%;">
-                        {{ item.workspace }}
-                    </div>
+                <!-- Workspace -->
+                <div style="width: 25%;">{{ item.workspace }}</div>
 
-                    <!-- Status -->
-                    <div style="width: 20%;">
-                        <v-chip :color="item.status === 'ACTIVE' ? 'green' : 'grey'" dark>
-                        {{ item.status === 'ACTIVE' ? 'Tracking' : 'Idle' }}
-                        </v-chip>
-                    </div>
-                    </div>
-                </template>
-            </v-data-table>
-        </v-card-text>
-  
-      <!-- No Data Alert -->
-      <v-alert v-if="!loading && filteredMembers.length === 0" type="info" class="mt-4">
-        No members found.
-      </v-alert>
-    </v-card>
-  </template>
+                <!-- Status -->
+                <div style="width: 15%;">
+                  <v-icon
+                    v-if="item.status === 'ACTIVE'"
+                    color="green"
+                    size="small"
+                    class="mr-1"
+                  >mdi-checkbox-blank-circle</v-icon>
+                  <v-icon
+                    v-else
+                    color="grey"
+                    size="small"
+                    class="mr-1"
+                  >mdi-checkbox-blank-circle</v-icon>
+                  <span>{{ item.status === 'ACTIVE' ? 'Tracking' : 'Idle' }}</span>
+                </div>
+              </div>
+            </template>
+          </v-data-table>
+
+          <!-- No Data Message -->
+          <v-alert v-if="!loading && filteredMembers.length === 0" type="info" class="mt-4 mx-6 mb-6">
+            No members found.
+          </v-alert>
+        </v-card>
+      </v-col>
+    </v-row>
+  </v-container>
+</template>
+
+
+
   
   <script setup lang="ts">
   import { onMounted, ref, computed } from 'vue';
