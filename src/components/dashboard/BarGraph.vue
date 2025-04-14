@@ -48,22 +48,22 @@ export default defineComponent({
     const { workspaces, fetchWorkspaces } = useWorkspaces();
     const chartSeries = ref<ChartSeriesItem[]>([{ name: "Billables", data: [] }]);
     const loading = ref(true);
-    
+
     const currentDate = new Date();
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
-    
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", 
-                       "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+      "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const activeMonths = monthNames.slice(0, currentMonth + 1);
-    
+
     const chartOptions = ref({
-      chart: { 
+      chart: {
         id: "bar-chart",
         toolbar: { show: false },
         height: '100%'
       },
-      xaxis: { 
+      xaxis: {
         categories: activeMonths,
         title: {
           text: `Months (Jan - ${monthNames[currentMonth]})`
@@ -72,19 +72,14 @@ export default defineComponent({
       yaxis: {
         title: {
           text: "Amount (₱)",
-          formatter: function(value: number) {
-            return "₱" + value;
-          }
         },
         labels: {
-          formatter: function(value: number) {
-            return "₱" + (value / 1000) + "k";
-          }
+          formatter: (value: number) => "₱" + (value / 1000) + "k"
         }
       },
-      title: { 
-        text: `Monthly Billables (${currentYear})`, 
-        align: "center" 
+      title: {
+        text: `Monthly Billables (${currentYear})`,
+        align: "center"
       },
       plotOptions: {
         bar: {
@@ -95,9 +90,7 @@ export default defineComponent({
       },
       dataLabels: {
         enabled: true,
-        formatter: function(val: number) {
-          return "₱" + (val).toLocaleString();
-        },
+        formatter: (val: number) => "₱" + val.toLocaleString(),
         offsetY: -20,
         style: {
           fontSize: '12px',
@@ -110,19 +103,17 @@ export default defineComponent({
       },
       tooltip: {
         y: {
-          formatter: function(value: number) {
-            return "₱" + (value).toLocaleString();
-          }
+          formatter: (value: number) => "₱" + value.toLocaleString()
         }
       }
     });
 
     const getMonthDateRange = (year: number, month: number): MonthDateRange => {
       const start = new Date(year, month, 1);
-      const end = month === currentMonth 
+      const end = month === currentMonth
         ? currentDate
         : new Date(year, month + 1, 0);
-      
+
       return {
         start: start.toISOString().split('T')[0] + "T00:00:00.000Z",
         end: end.toISOString().split('T')[0] + "T23:59:59.999Z"
@@ -168,13 +159,20 @@ export default defineComponent({
               const duration = userEntries?.totalTime || "PT0S";
               const hours = hourlyTime(duration);
               const rate = workspace.memberships?.find(m => m.userId === user.id)?.hourlyRate?.amount || 0;
-              
+
               monthlyTotals[month] += hours * rate;
             });
           }
         }
 
-        chartSeries.value[0].data = monthlyTotals.map(amount => Math.round(amount) / 100);
+        // Save to localStorage
+        const result = monthlyTotals.map(amount => Math.round(amount) / 100);
+        chartSeries.value[0].data = result;
+        localStorage.setItem('monthlyBillablesData', JSON.stringify({
+          data: result,
+          cachedAt: new Date().toISOString()
+        }));
+        console.log("[BarGraph] Saved billables to localStorage.");
       } catch (error) {
         console.error("[BarGraph] Error in computeMonthlyBillables:", error);
         chartSeries.value[0].data = new Array(currentMonth + 1).fill(0);
@@ -184,6 +182,28 @@ export default defineComponent({
     };
 
     onMounted(() => {
+      const cache = localStorage.getItem('monthlyBillablesData');
+
+      if (cache) {
+        try {
+          const parsed = JSON.parse(cache);
+          const cachedTime = new Date(parsed.cachedAt).getTime();
+          const now = Date.now();
+          const maxAge = 1000 * 60 * 60 * 24; // 24 hours
+
+          if (now - cachedTime < maxAge) {
+            chartSeries.value[0].data = parsed.data;
+            console.log("[BarGraph] Loaded billables from localStorage.");
+            loading.value = false;
+            return;
+          } else {
+            console.log("[BarGraph] Cached data expired. Fetching new data...");
+          }
+        } catch (e) {
+          console.warn("[BarGraph] Failed to parse cached data. Fetching new data...");
+        }
+      }
+
       computeMonthlyBillables();
     });
 
@@ -191,6 +211,7 @@ export default defineComponent({
   },
 });
 </script>
+
 
 <style scoped>
 .v-card {
