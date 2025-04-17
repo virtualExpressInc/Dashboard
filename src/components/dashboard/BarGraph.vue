@@ -22,7 +22,7 @@
 </template>
 
 <script lang="ts">
-import { defineComponent, ref, onMounted } from "vue";
+import { defineComponent, ref, onMounted, onBeforeUnmount } from "vue";
 import VueApexCharts from "vue3-apexcharts";
 import { useWorkspaces } from "@/hooks/workspace/useGetAllWorkspace";
 import { useUsersByWorkspace } from "@/hooks/user/useGetAllUsersByWorkspace";
@@ -48,6 +48,7 @@ export default defineComponent({
     const { workspaces, fetchWorkspaces } = useWorkspaces();
     const chartSeries = ref<ChartSeriesItem[]>([{ name: "Billables", data: [] }]);
     const loading = ref(true);
+    const refetchInterval = ref<number | null>(null);
 
     const currentDate = new Date();
     const currentYear = currentDate.getFullYear();
@@ -165,14 +166,15 @@ export default defineComponent({
           }
         }
 
-        // Save to localStorage
         const result = monthlyTotals.map(amount => Math.round(amount) / 100);
         chartSeries.value[0].data = result;
+
         localStorage.setItem('monthlyBillablesData', JSON.stringify({
           data: result,
           cachedAt: new Date().toISOString()
         }));
-        console.log("[BarGraph] Saved billables to localStorage.");
+
+        console.log(`[BarGraph] ✅ Refetched and updated at ${new Date().toLocaleTimeString()}`);
       } catch (error) {
         console.error("[BarGraph] Error in computeMonthlyBillables:", error);
         chartSeries.value[0].data = new Array(currentMonth + 1).fill(0);
@@ -195,22 +197,37 @@ export default defineComponent({
             chartSeries.value[0].data = parsed.data;
             console.log("[BarGraph] Loaded billables from localStorage.");
             loading.value = false;
-            return;
           } else {
             console.log("[BarGraph] Cached data expired. Fetching new data...");
+            computeMonthlyBillables();
           }
         } catch (e) {
           console.warn("[BarGraph] Failed to parse cached data. Fetching new data...");
+          computeMonthlyBillables();
         }
+      } else {
+        computeMonthlyBillables();
       }
 
-      computeMonthlyBillables();
+      // 🔁 Refetch every 1 minute for testing
+      refetchInterval.value = window.setInterval(() => {
+        console.log("[BarGraph] 🔁 Auto-refetching...");
+        computeMonthlyBillables();
+      }, 60000); // 1 minute
+    });
+
+    onBeforeUnmount(() => {
+      if (refetchInterval.value) {
+        clearInterval(refetchInterval.value);
+        console.log("[BarGraph] ⏹ Cleared refetch interval on unmount.");
+      }
     });
 
     return { chartOptions, chartSeries, loading };
   },
 });
 </script>
+
 
 
 <style scoped>

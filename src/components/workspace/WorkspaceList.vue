@@ -1,5 +1,5 @@
 <template>
-  <v-container>
+  <section>
     <v-row>
       <v-col cols="12">
         <v-card variant="flat">
@@ -44,7 +44,7 @@
     :workspace="selectedWorkspace"
     @close="openDialog = false" />
 
-  </v-container>
+  </section>
 </template>
 
 <script setup lang="ts">

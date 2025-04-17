@@ -3,6 +3,7 @@ import { setupLayouts } from 'virtual:generated-layouts';
 import { routes } from 'vue-router/auto-routes';
 import Login from '@/pages/login.vue';
 
+
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: setupLayouts([

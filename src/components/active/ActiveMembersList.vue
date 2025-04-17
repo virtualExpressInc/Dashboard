@@ -1,5 +1,5 @@
 <template>
-  <v-container>
+  <section>
     <v-row>
       <v-col cols="12">
         <v-card class="rounded-lg" variant="flat" style="border: 1px solid #eee;">
@@ -45,22 +45,46 @@
             <template v-slot:item="{ item }">
               <div class="d-flex px-6 py-3 align-center" style="border-bottom: 1px solid #eee;">
                 <!-- Name -->
-                <div style="width: 50%; min-width: 240px;">
-                  <div>{{ item.name }}</div>
-                  <div class="text-caption">{{ item.email }}</div>
+                <div class="d-flex align-center" style="width: 50%; min-width: 240px;">
+                  <v-avatar
+                    size="40"
+                    class="rounded-circle mr-3"
+                    :class="item.status === 'ACTIVE' ? 'avatar-border-active' : 'avatar-border-idle'"
+                  >
+                    <v-img v-if="item.profilePicture" :src="item.profilePicture" alt="User Avatar" />
+                    <span v-else class="avatar-placeholder">{{ item.name.charAt(0).toUpperCase() }}</span>
+                  </v-avatar>
+                  <div class="d-flex flex-column align-left">
+                    <div>{{ item.name }}</div>
+                    <div class="text-caption">{{ item.email }}</div>
+                  </div>
                 </div>
 
                 <!-- Workspace -->
                 <div style="width: 35%;">{{ item.workspace }}</div>
 
-                <!-- Status -->
-                <div style="width: 15%;">
-                  <v-icon
-                    :color="item.status === 'ACTIVE' ? 'green' : 'grey'"
-                    size="small"
-                    class="mr-1"
-                  >mdi-checkbox-blank-circle</v-icon>
-                  <span>{{ item.status === 'ACTIVE' ? 'Tracking' : 'Idle' }}</span>
+                <!-- Status + Menu -->
+                <div style="width: 15%;" class="d-flex align-center justify-space-between">
+                  <div class="d-flex align-center">
+                    <v-icon
+                      :color="item.status === 'ACTIVE' ? 'green' : 'grey'"
+                      size="small"
+                      class="mr-1"
+                    >mdi-checkbox-blank-circle</v-icon>
+                    <span>{{ item.status === 'ACTIVE' ? 'Tracking' : 'Idle' }}</span>
+                  </div>
+                  <v-menu>
+                    <template #activator="{ props }">
+                      <v-btn icon variant="text" v-bind="props">
+                        <v-icon>mdi-dots-vertical</v-icon>
+                      </v-btn>
+                    </template>
+                    <v-list>
+                      <v-list-item @click="handleViewProfile(item.workspaceId, item.id)">
+                        <v-list-item-title>View</v-list-item-title>
+                      </v-list-item>
+                    </v-list>
+                  </v-menu>
                 </div>
               </div>
             </template>
@@ -77,75 +101,92 @@
         </v-card>
       </v-col>
     </v-row>
-  </v-container>
+
+    <!-- Profile Dialog -->
+    <MemberProfileDialog
+      v-model="profileDialog"
+      :profile="profile"
+      :status="profile?.status"
+    />
+  </section>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue';
-import { useWorkspaces } from '@/hooks/workspace/useGetAllWorkspace';
-import { getAllUsersByWorkspace } from '@/services/user.services';
-import api from '../../axiosInstance/index';
+    import { onMounted, ref, computed, onBeforeUnmount } from 'vue';
+    import { useWorkspaces } from '@/hooks/workspace/useGetAllWorkspace';
+    import { getAllUsersByWorkspace } from '@/services/user.services';
+    import { useGetUserProfile } from '@/hooks/user/useMemberProfile';
+    import MemberProfileDialog from '@/components/active/MemberProfileDialog.vue';
+    import api from '../../axiosInstance/index';
 
-const { workspaces, fetchWorkspaces } = useWorkspaces();
-const loading = ref(true);
-const allMembers = ref<any[]>([]);
-const selectedWorkspace = ref<string | null>(null);
+    const { workspaces, fetchWorkspaces } = useWorkspaces();
+    const loading = ref(true);
+    const allMembers = ref<any[]>([]);
+    const selectedWorkspace = ref<string | null>(null);
+    const profileDialog = ref(false);
+    const selectedUserId = ref<string | null>(null);
+    const selectedWorkspaceId = ref<string | null>(null);
 
-const headers = [
-  { text: 'Name', value: 'name' },
-  { text: 'Workspace', value: 'workspace' },
-  { text: 'Status', value: 'status' }
-];
+    const { profile, loading: loadingProfile, fetchProfile } = useGetUserProfile();
 
-const workspaceOptions = computed(() => {
-  const dynamicOptions = (workspaces.value || []).map(ws => ({
-    name: ws.name,
-    id: ws.id
-  }));
-  return [{ name: 'All Workspaces', id: 'ALL' }, ...dynamicOptions];
-});
 
-const filteredMembers = computed(() => {
-  if (!selectedWorkspace.value || selectedWorkspace.value === 'ALL') {
-    return allMembers.value;
-  }
-  return allMembers.value.filter(member => member.workspaceId === selectedWorkspace.value);
-});
+    let refetchInterval: number | undefined;
 
-const isUserTimerRunning = async (workspaceId: string, userId: string): Promise<boolean> => {
-  try {
-    const { data } = await api.get(
-      `workspaces/${workspaceId}/user/${userId}/time-entries?in-progress=true`
-    );
-    return data.length > 0 && data[0].timeInterval?.end === null;
-  } catch (error) {
-    console.error(`⛔ Error checking timer for user ${userId} in workspace ${workspaceId}:`, error);
-    return false;
-  }
-};
+    const headers = [
+      { text: 'Name', value: 'name' },
+      { text: 'Workspace', value: 'workspace' },
+      { text: 'Status', value: 'status' }
+    ];
 
-    onMounted(async () => {
-      const cacheKey = 'activeMembersCache';
-      const cacheTTL = 1000 * 60 * 5; // 5 minutes
+    const handleViewProfile = async (workspaceId: string, userId: string) => {
+      selectedUserId.value = userId;
+      selectedWorkspaceId.value = workspaceId;
 
-      const cached = localStorage.getItem(cacheKey);
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          const age = Date.now() - parsed.timestamp;
+      const member = allMembers.value.find(
+        (m) => m.id === userId && m.workspaceId === workspaceId
+      );
 
-          if (age < cacheTTL) {
-            allMembers.value = parsed.data;
-            console.log("✅ Loaded members from localStorage cache");
-            loading.value = false;
-            return;
-          }
-        } catch (e) {
-          console.warn("⚠️ Failed to parse localStorage cache:", e);
-        }
+      await fetchProfile(workspaceId, userId);
+
+      if (profile.value && member?.status) {
+        profile.value.status = member.status;
       }
 
+      profileDialog.value = true;
+    };
+
+    const workspaceOptions = computed(() => {
+      const dynamicOptions = (workspaces.value || []).map(ws => ({
+        name: ws.name,
+        id: ws.id
+      }));
+      return [{ name: 'All Workspaces', id: 'ALL' }, ...dynamicOptions];
+    });
+
+    const filteredMembers = computed(() => {
+      if (!selectedWorkspace.value || selectedWorkspace.value === 'ALL') {
+        return allMembers.value;
+      }
+      return allMembers.value.filter(member => member.workspaceId === selectedWorkspace.value);
+    });
+
+    const isUserTimerRunning = async (workspaceId: string, userId: string): Promise<boolean> => {
+      try {
+        const { data } = await api.get(
+          `workspaces/${workspaceId}/user/${userId}/time-entries?in-progress=true`
+        );
+        return data.length > 0 && data[0].timeInterval?.end === null;
+      } catch (error) {
+        console.error(`⛔ Error checking timer for user ${userId} in workspace ${workspaceId}:`, error);
+        return false;
+      }
+    };
+
+    // 🆕 Extract data fetching logic for reuse
+    const loadMemberData = async () => {
+      loading.value = true;
       await fetchWorkspaces();
+      console.log("🚩 Workspaces fetched:", workspaces.value);
 
       if (!workspaces.value || workspaces.value.length === 0) {
         loading.value = false;
@@ -164,6 +205,7 @@ const isUserTimerRunning = async (workspaceId: string, userId: string): Promise<
               const isRunning = await isUserTimerRunning(workspace.id, user.id);
 
               userMap.set(uniqueKey, {
+                id: user.id,
                 name: user.name,
                 email: user.email,
                 profilePicture: user.profilePicture || null,
@@ -182,12 +224,80 @@ const isUserTimerRunning = async (workspaceId: string, userId: string): Promise<
 
       allMembers.value = Array.from(userMap.values());
       localStorage.setItem(
-        cacheKey,
+        'activeMembersCache',
         JSON.stringify({ data: allMembers.value, timestamp: Date.now() })
       );
 
       console.log("✅ Members loaded from API and saved to localStorage");
       loading.value = false;
+    };
+
+    onMounted(async () => {
+      const cacheKey = 'activeMembersCache';
+      const cacheTTL = 1000 * 60 * 5; // 5 minutes
+
+      const cached = localStorage.getItem(cacheKey);
+
+      await fetchWorkspaces();
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          const age = Date.now() - parsed.timestamp;
+
+          if (age < cacheTTL) {
+            allMembers.value = parsed.data;
+            console.log("✅ Loaded members from localStorage cache");
+            loading.value = false;
+          } else {
+            await loadMemberData();
+          }
+        } catch (e) {
+          console.warn("⚠️ Failed to parse localStorage cache:", e);
+          await loadMemberData();
+        }
+      } else {
+        await loadMemberData();
+      }
+
+      refetchInterval = window.setInterval(() => {
+        console.log("🔁 Refetching member data...");
+        loadMemberData().then(() => {
+          console.log("✅ Refetching successful");
+        });
+      }, 3600000); // 1 hour
     });
 
+    // 🧹 Cleanup interval on component unmount
+    onBeforeUnmount(() => {
+      if (refetchInterval) {
+        clearInterval(refetchInterval);
+      }
+    });
+
+
 </script>
+
+<style>
+.avatar-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: white;
+  background-color: #999;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
+/* Enhanced border thickness and lighter green */
+.avatar-border-active {
+  border: 3px solid #00be00; /* lighter green */
+}
+
+.avatar-border-idle {
+  border: 3px solid #B0BEC5; /* muted grey-blue */
+}
+
+
+</style>
