@@ -107,6 +107,8 @@
       v-model="profileDialog"
       :profile="profile"
       :status="profile?.status"
+      :workspace-id="selectedWorkspaceId || ''"
+      :user-id="selectedUserId || ''"
     />
   </section>
 </template>

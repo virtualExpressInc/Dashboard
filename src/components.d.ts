@@ -14,7 +14,6 @@ declare module 'vue' {
     CountCards: typeof import('./components/dashboard/CountCards.vue')['default']
     HelloWorld: typeof import('./components/HelloWorld.vue')['default']
     LoginCard: typeof import('./components/login/LoginCard.vue')['default']
-    MemberProfile: typeof import('./components/active/MemberProfileDialog.vue')['default']
     MemberProfileDialog: typeof import('./components/active/MemberProfileDialog.vue')['default']
     PieChart: typeof import('./components/dashboard/PieChart.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']

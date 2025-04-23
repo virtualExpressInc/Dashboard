@@ -8,10 +8,7 @@
             <v-img v-if="profile?.imageUrl" :src="profile.imageUrl" alt="User Avatar" />
             <span v-else class="avatar-placeholder">{{ profile?.name.charAt(0).toUpperCase() }}</span>
           </v-avatar>
-          <span
-            class="status-indicator"
-            :class="profile?.status === 'ACTIVE' ? 'bg-green' : 'bg-grey'"
-          ></span>
+          <span class="status-indicator" :class="profile?.status === 'ACTIVE' ? 'bg-green' : 'bg-grey'"></span>
         </div>
       </v-row>
 
@@ -20,11 +17,7 @@
 
       <div class="mb-4 d-flex align-center">
         <span class="font-weight-bold mr-2">Status:</span>
-        <v-icon
-          :color="profile?.status === 'ACTIVE' ? 'green' : 'grey'"
-          size="small"
-          class="mr-1"
-        >
+        <v-icon :color="profile?.status === 'ACTIVE' ? 'green' : 'grey'" size="small" class="mr-1">
           mdi-checkbox-blank-circle
         </v-icon>
         <span>{{ profile?.status === 'ACTIVE' ? 'Tracking' : 'Idle' }}</span>
@@ -45,23 +38,23 @@
 
         <p>
           <span class="font-weight-bold">Total Hours Worked This Week:</span>
-          {{ hourlyTime(profile?.totalWorkedThisWeek || 'PT0H') }} hours
+          {{ hourlyTime(totalWorkedThisWeek) }} hours
         </p>
 
         <!-- Creative Work Days -->
         <p class="font-weight-bold mb-2">Working Days:</p>
-          <div class="d-flex flex-wrap gap-2">
-            <v-chip
-              v-for="day in allDays"
-              :key="day"
-              :color="profile?.workingDays?.includes(day) ? 'primary' : 'grey lighten-1'"
-              :variant="profile?.workingDays?.includes(day) ? 'flat' : 'outlined'"
-              size="small"
-              class="day-chip"
-            >
-              {{ day.slice(0, 3) }}
-            </v-chip>
-          </div>
+        <div class="d-flex flex-wrap gap-2">
+          <v-chip
+            v-for="day in allDays"
+            :key="day"
+            :color="profile?.workingDays?.includes(day) ? 'primary' : 'grey lighten-1'"
+            :variant="profile?.workingDays?.includes(day) ? 'flat' : 'outlined'"
+            size="small"
+            class="day-chip"
+          >
+            {{ day.slice(0, 3) }}
+          </v-chip>
+        </div>
 
         <p class="mt-4">
           <span class="font-weight-bold">Workspace Number:</span> {{ profile?.workspaceNumber }}
@@ -77,7 +70,11 @@
 </template>
 
 <script setup lang="ts">
-import { hourlyTime } from '@/helpers/hourlyTime'
+import { ref, watch } from 'vue';
+import { hourlyTime } from '@/helpers/hourlyTime';
+import Api from '../../axiosInstance/globalApi';
+import api from '@/axiosInstance';
+
 
 const props = defineProps<{
   modelValue: boolean
@@ -91,14 +88,65 @@ const props = defineProps<{
     totalWorkedThisWeek: string
     status?: string
   } | null
-}>()
+  workspaceId: string
+  userId: string
+}>();
 
-defineEmits(['update:modelValue'])
+defineEmits(['update:modelValue']);
+
+const totalWorkedThisWeek = ref('PT0H');
+
+
+const fetchTotalWorkedTime = async () => {
+  if (!props.workspaceId || !props.userId) return;
+
+  try {
+    const now = new Date();
+    const weekStart = new Date(now);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    weekStart.setHours(0, 0, 0, 0);
+
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
+
+    const { data } = await api.get(`/workspaces/${props.workspaceId}/user/${props.userId}/time-entries`, {
+      params: {
+        start: weekStart.toISOString(),
+        end: weekEnd.toISOString()
+      }
+    });
+
+    let totalSeconds = 0;
+    data.forEach((entry: any) => {
+      if (entry.timeInterval?.start && entry.timeInterval?.end) {
+        const start = new Date(entry.timeInterval.start);
+        const end = new Date(entry.timeInterval.end);
+        totalSeconds += (end.getTime() - start.getTime()) / 1000;
+      }
+    });
+
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    totalWorkedThisWeek.value = `PT${hours}H${minutes}M`;
+  } catch (error) {
+    console.error("Failed to fetch total worked time:", error);
+  }
+};
+
+
+
+// Watch for dialog open
+watch(() => props.modelValue, async (open) => {
+  if (open) {
+    await fetchTotalWorkedTime();
+  }
+});
 
 const allDays = [
   'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY',
   'FRIDAY', 'SATURDAY', 'SUNDAY'
-]
+];
 </script>
 
 <style scoped>
@@ -139,13 +187,13 @@ const allDays = [
 }
 
 .day-chip {
-  min-width: 48px;  /* Wider than before */
+  min-width: 48px;
   text-align: center;
   justify-content: center;
   font-weight: 500;
   padding-left: 10px;
   padding-right: 10px;
-  margin-right: 4px; /* Extra gap between chips */
-  margin-bottom: 6px; /* Adds spacing if chips wrap */
+  margin-right: 4px;
+  margin-bottom: 6px;
 }
 </style>
