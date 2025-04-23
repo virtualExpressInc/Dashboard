@@ -112,170 +112,163 @@
 </template>
 
 <script setup lang="ts">
-    import { onMounted, ref, computed, onBeforeUnmount } from 'vue';
-    import { useWorkspaces } from '@/hooks/workspace/useGetAllWorkspace';
-    import { getAllUsersByWorkspace } from '@/services/user.services';
-    import { useGetUserProfile } from '@/hooks/user/useMemberProfile';
-    import MemberProfileDialog from '@/components/active/MemberProfileDialog.vue';
-    import api from '../../axiosInstance/index';
+import { onMounted, ref, computed, onBeforeUnmount } from 'vue';
+import { useWorkspaces } from '@/hooks/workspace/useGetAllWorkspace';
+import { getAllUsersByWorkspace } from '@/services/user.services';
+import { useGetUserProfile } from '@/hooks/user/useMemberProfile';
+import MemberProfileDialog from '@/components/active/MemberProfileDialog.vue';
+import api from '../../axiosInstance/index';
 
-    const { workspaces, fetchWorkspaces } = useWorkspaces();
-    const loading = ref(true);
-    const allMembers = ref<any[]>([]);
-    const selectedWorkspace = ref<string | null>(null);
-    const profileDialog = ref(false);
-    const selectedUserId = ref<string | null>(null);
-    const selectedWorkspaceId = ref<string | null>(null);
+const { workspaces, fetchWorkspaces } = useWorkspaces();
+const loading = ref(true);
+const allMembers = ref<any[]>([]);
+const selectedWorkspace = ref<string | null>(null);
+const profileDialog = ref(false);
+const selectedUserId = ref<string | null>(null);
+const selectedWorkspaceId = ref<string | null>(null);
+const emit = defineEmits(['updateActiveMembers']);
 
-    const { profile, loading: loadingProfile, fetchProfile } = useGetUserProfile();
+const { profile, fetchProfile } = useGetUserProfile();
 
+let refetchInterval: number | undefined;
 
-    let refetchInterval: number | undefined;
+const headers = [
+  { text: 'Name', value: 'name' },
+  { text: 'Workspace', value: 'workspace' },
+  { text: 'Status', value: 'status' }
+];
 
-    const headers = [
-      { text: 'Name', value: 'name' },
-      { text: 'Workspace', value: 'workspace' },
-      { text: 'Status', value: 'status' }
-    ];
+const handleViewProfile = async (workspaceId: string, userId: string) => {
+  selectedUserId.value = userId;
+  selectedWorkspaceId.value = workspaceId;
 
-    const handleViewProfile = async (workspaceId: string, userId: string) => {
-      selectedUserId.value = userId;
-      selectedWorkspaceId.value = workspaceId;
+  const member = allMembers.value.find(m => m.id === userId && m.workspaceId === workspaceId);
+  emit('updateActiveMembers', allMembers.value);
+  console.log("📤 Emitting updated allMembers to parent:", allMembers.value);
+  await fetchProfile(workspaceId, userId);
 
-      const member = allMembers.value.find(
-        (m) => m.id === userId && m.workspaceId === workspaceId
-      );
+  if (profile.value && member?.status) {
+    profile.value.status = member.status;
+    profile.value.totalWorkedThisWeek = member.totalWorkedThisWeek || 'PT0H';
+  }
 
-      await fetchProfile(workspaceId, userId);
+  profileDialog.value = true;
+};
 
-      if (profile.value && member?.status) {
-        profile.value.status = member.status;
-      }
+const workspaceOptions = computed(() => {
+  const dynamicOptions = (workspaces.value || []).map(ws => ({ name: ws.name, id: ws.id }));
+  return [{ name: 'All Workspaces', id: 'ALL' }, ...dynamicOptions];
+});
 
-      profileDialog.value = true;
-    };
+const filteredMembers = computed(() => {
+  if (!selectedWorkspace.value || selectedWorkspace.value === 'ALL') {
+    return allMembers.value;
+  }
+  return allMembers.value.filter(member => member.workspaceId === selectedWorkspace.value);
+});
 
-    const workspaceOptions = computed(() => {
-      const dynamicOptions = (workspaces.value || []).map(ws => ({
-        name: ws.name,
-        id: ws.id
-      }));
-      return [{ name: 'All Workspaces', id: 'ALL' }, ...dynamicOptions];
-    });
+// Check if user timer is running (rate-limited)
+const isUserTimerRunning = async (workspaceId: string, userId: string): Promise<boolean> => {
+  try {
+    await new Promise(resolve => setTimeout(resolve, 200)); // 200ms delay between requests
+    const { data } = await api.get(`workspaces/${workspaceId}/user/${userId}/time-entries?in-progress=true`);
+    return data.length > 0 && data[0].timeInterval?.end === null;
+  } catch (error) {
+    return false;
+  }
+};
 
-    const filteredMembers = computed(() => {
-      if (!selectedWorkspace.value || selectedWorkspace.value === 'ALL') {
-        return allMembers.value;
-      }
-      return allMembers.value.filter(member => member.workspaceId === selectedWorkspace.value);
-    });
+// Load all members with throttled status checks
+const loadMemberData = async () => {
+  loading.value = true;
+  await fetchWorkspaces();
+  console.log("🚩 loadMemberData triggered.");
 
-    const isUserTimerRunning = async (workspaceId: string, userId: string): Promise<boolean> => {
-      try {
-        const { data } = await api.get(
-          `workspaces/${workspaceId}/user/${userId}/time-entries?in-progress=true`
-        );
-        return data.length > 0 && data[0].timeInterval?.end === null;
-      } catch (error) {
-        console.error(`⛔ Error checking timer for user ${userId} in workspace ${workspaceId}:`, error);
-        return false;
-      }
-    };
+  if (!workspaces.value || workspaces.value.length === 0) {
+    loading.value = false;
+    return;
+  }
 
-    // 🆕 Extract data fetching logic for reuse
-    const loadMemberData = async () => {
-      loading.value = true;
-      await fetchWorkspaces();
-      console.log("🚩 Workspaces fetched:", workspaces.value);
+  const userMap = new Map<string, any>();
 
-      if (!workspaces.value || workspaces.value.length === 0) {
-        loading.value = false;
-        return;
-      }
+  for (const workspace of workspaces.value) {
+    try {
+      const users = await getAllUsersByWorkspace(workspace.id);
 
-      const userMap = new Map<string, any>();
+      for (const user of users) {
+        const uniqueKey = `${user.email}-${workspace.id}`;
+        if (!userMap.has(uniqueKey)) {
+          const isRunning = await isUserTimerRunning(workspace.id, user.id);
 
-      for (const workspace of workspaces.value) {
-        try {
-          const users = await getAllUsersByWorkspace(workspace.id);
-
-          const userChecks = users.map(async (user: any) => {
-            const uniqueKey = `${user.email}-${workspace.id}`;
-            if (!userMap.has(uniqueKey)) {
-              const isRunning = await isUserTimerRunning(workspace.id, user.id);
-
-              userMap.set(uniqueKey, {
-                id: user.id,
-                name: user.name,
-                email: user.email,
-                profilePicture: user.profilePicture || null,
-                workspace: workspace.name,
-                workspaceId: workspace.id,
-                status: isRunning ? 'ACTIVE' : 'INACTIVE'
-              });
-            }
+          userMap.set(uniqueKey, {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            profilePicture: user.profilePicture || null,
+            workspace: workspace.name,
+            workspaceId: workspace.id,
+            status: isRunning ? 'ACTIVE' : 'INACTIVE',
+            totalWorkedThisWeek: 'PT0H' // Static value for now
           });
-
-          await Promise.all(userChecks);
-        } catch (e) {
-          console.error(`❌ Failed to fetch users for workspace "${workspace.name}"`, e);
         }
       }
+    } catch (e) {
+    }
+  }
 
-      allMembers.value = Array.from(userMap.values());
-      localStorage.setItem(
-        'activeMembersCache',
-        JSON.stringify({ data: allMembers.value, timestamp: Date.now() })
-      );
+  allMembers.value = Array.from(userMap.values());
+  localStorage.setItem('activeMembersCache', JSON.stringify({ data: allMembers.value, timestamp: Date.now() }));
+  loading.value = false;
+};
 
-      console.log("✅ Members loaded from API and saved to localStorage");
-      loading.value = false;
-    };
+onMounted(async () => {
+  const cacheKey = 'activeMembersCache';
+  const cacheTTL = 1000 * 60 * 5;
+  
 
-    onMounted(async () => {
-      const cacheKey = 'activeMembersCache';
-      const cacheTTL = 1000 * 60 * 5; // 5 minutes
+  const cached = localStorage.getItem(cacheKey);
+  await fetchWorkspaces();
 
-      const cached = localStorage.getItem(cacheKey);
+  if (cached) {
+    try {
+      const parsed = JSON.parse(cached);
+      const age = Date.now() - parsed.timestamp;
 
-      await fetchWorkspaces();
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          const age = Date.now() - parsed.timestamp;
-
-          if (age < cacheTTL) {
-            allMembers.value = parsed.data;
-            console.log("✅ Loaded members from localStorage cache");
-            loading.value = false;
-          } else {
-            await loadMemberData();
-          }
-        } catch (e) {
-          console.warn("⚠️ Failed to parse localStorage cache:", e);
-          await loadMemberData();
-        }
+      if (age < cacheTTL) {
+        allMembers.value = parsed.data;
+        loading.value = false;
+        console.log("✅ Loaded members from localStorage cache.");
       } else {
         await loadMemberData();
+        console.log("🔄 Refetched data successfully after cache expiry.");
       }
+    } catch (e) {
+      await loadMemberData();
+      console.log("🔄 Refetched data successfully after cache parse error.");
+    }
+  } else {
+    await loadMemberData();
+    console.log("🔄 Refetched data successfully (no cache found).");
+  }
 
-      refetchInterval = window.setInterval(() => {
-        console.log("🔁 Refetching member data...");
-        loadMemberData().then(() => {
-          console.log("✅ Refetching successful");
-        });
-      }, 3600000); // 1 hour
-    });
+  refetchInterval = window.setInterval(async () => {
+    await loadMemberData();
+    console.log("🔁 Periodic refetch successful.");
+    emit('updateActiveMembers', allMembers.value);
+    console.log("📤 Emitted updated members:", allMembers.value);
+  }, 60000); // 1 hour
+});
 
-    // 🧹 Cleanup interval on component unmount
-    onBeforeUnmount(() => {
-      if (refetchInterval) {
-        clearInterval(refetchInterval);
-      }
-    });
-
-
+onBeforeUnmount(() => {
+  if (refetchInterval) {
+    clearInterval(refetchInterval);
+  }
+});
 </script>
+
+
+
+
 
 <style>
 .avatar-placeholder {
