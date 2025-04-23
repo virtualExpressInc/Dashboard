@@ -20,7 +20,7 @@
     </v-row>
 
     <!-- Fetch Active Members and emit updates -->
-    <ActiveMembersList v-if="false" @updateActiveMembers="updateAllMembers" />
+    <ActiveMembersList v-show="false" @updateActiveMembers="updateAllMembers" />
   </div>
 </template>
 

@@ -224,7 +224,6 @@ const loadMemberData = async () => {
 onMounted(async () => {
   const cacheKey = 'activeMembersCache';
   const cacheTTL = 1000 * 60 * 5;
-  
 
   const cached = localStorage.getItem(cacheKey);
   await fetchWorkspaces();
@@ -238,25 +237,33 @@ onMounted(async () => {
         allMembers.value = parsed.data;
         loading.value = false;
         console.log("✅ Loaded members from localStorage cache.");
+        emit('updateActiveMembers', allMembers.value);  // 🔥 Emit after cache load
+        console.log("📤 Emitted updated members from cache:", allMembers.value);
       } else {
         await loadMemberData();
         console.log("🔄 Refetched data successfully after cache expiry.");
+        emit('updateActiveMembers', allMembers.value);  // 🔥 Emit after refetch
+        console.log("📤 Emitted updated members after cache expiry:", allMembers.value);
       }
     } catch (e) {
       await loadMemberData();
       console.log("🔄 Refetched data successfully after cache parse error.");
+      emit('updateActiveMembers', allMembers.value);  // 🔥 Emit after parse error recovery
+      console.log("📤 Emitted updated members after cache parse error:", allMembers.value);
     }
   } else {
     await loadMemberData();
     console.log("🔄 Refetched data successfully (no cache found).");
+    emit('updateActiveMembers', allMembers.value);  // 🔥 Emit after no cache
+    console.log("📤 Emitted updated members (no cache):", allMembers.value);
   }
 
   refetchInterval = window.setInterval(async () => {
     await loadMemberData();
     console.log("🔁 Periodic refetch successful.");
     emit('updateActiveMembers', allMembers.value);
-    console.log("📤 Emitted updated members:", allMembers.value);
-  }, 60000); // 1 hour
+    console.log("📤 Emitted updated members (periodic):", allMembers.value);
+  }, 3600000); 
 });
 
 onBeforeUnmount(() => {

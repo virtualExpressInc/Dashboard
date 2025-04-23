@@ -237,7 +237,7 @@ import { hourlyTime } from "@/helpers/hourlyTime";
             updateChartData().then(() => {
               console.log(`[AverageSalaryChart] ✅ Refetched and updated at ${new Date().toLocaleTimeString()}`);
             });
-          }, 60000); // 1 minute
+          }, 360000);
         });
 
 

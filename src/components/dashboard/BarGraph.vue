@@ -213,7 +213,7 @@ export default defineComponent({
       refetchInterval.value = window.setInterval(() => {
         console.log("[BarGraph] 🔁 Auto-refetching...");
         computeMonthlyBillables();
-      }, 60000); // 1 minute
+      }, 3600000); // 1 minute
     });
 
     onBeforeUnmount(() => {

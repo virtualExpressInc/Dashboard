@@ -190,7 +190,7 @@ import { moneyFormat } from "@/helpers/moneyFormat";
         refetchInterval.value = window.setInterval(() => {
           console.log("[PieChart] 🔁 Auto-refetching...");
           computeYearlyBillables();
-        }, 60000);
+        }, 360000);
       });
 
       onBeforeUnmount(() => {
