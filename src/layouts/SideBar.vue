@@ -54,7 +54,7 @@ const rail = ref(window.innerWidth <= 768);
 
 const navItems = ref<RouteItem[]>([
   { path: '/', name: 'Dashboard', icon: 'mdi-view-dashboard' },
-  { path: '/clients', name: 'Clients', icon: 'mdi-account-group' },
+  { path: '/clients', name: 'Workspaces', icon: 'mdi-account-group' },
   { path: '/members', name: 'Members', icon: 'mdi-account-multiple' },
   // { path: '/projects', name: 'Projects', icon: 'mdi-briefcase' },
   // { path: '/reports', name: 'Reports', icon: 'mdi-chart-bar' },
